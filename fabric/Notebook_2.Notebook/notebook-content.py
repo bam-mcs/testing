@@ -32,3 +32,10 @@ print('hello world!')
 # META   "language": "python",
 # META   "language_group": "synapse_pyspark"
 # META }
+
+# CELL ********************
+
+print('2')
+
+# CELL ********************
+

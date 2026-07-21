@@ -1,0 +1,14 @@
+[
+  {
+    "name": "silver_nsw_current_weather",
+    "path": "/Tables/dbo",
+    "target": {
+      "type": "OneLake",
+      "oneLake": {
+        "path": "Tables/silver_nsw_current_weather/silver_nsw_current_weather",
+        "itemId": "ba924fe7-2ebc-40d7-8c21-35bf4c531c3b",
+        "workspaceId": "f2408f0f-01c9-40fb-aa17-58a2c4c64c46"
+      }
+    }
+  }
+]

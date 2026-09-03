@@ -22,7 +22,7 @@ import json, notebookutils
 from datetime import datetime, timedelta, timezone
  
 NOTEBOOK = "./nb_api_to_bronze"
-TIMEOUT = 3600
+DEFAULT_TIMEOUT = 3600          # seconds, used when a dataset does not set its own "timeout"
 today = datetime.now(timezone.utc).date()
 COCOUNSEL = {
     "destination_schema" : "cocounsel",
@@ -69,34 +69,40 @@ LEGORA = {
 DATASETS = [ # 1st aug 2025 
     {**COCOUNSEL, "source": "cocounsel", "dataset": "user_usage",
      "endpoint": "/analytics", "destination_table": "user_usage",
-     "ingestion_type": "incremental", "start_date": str(today - timedelta(days=30))},
+     "ingestion_type": "incremental", "start_date": str(today - timedelta(days=30)),
+     "watermark_column": "date", "watermark_format": "yyyy-MM-dd",
+     "timeout": 1800},
  
     {**COCOUNSEL, "source": "cocounsel", "dataset": "skill_usage",
      "endpoint": "/analytics", "query_params": json.dumps({"include": "skills"}),
     "destination_table": "skill_usage",
-     "ingestion_type": "incremental", "start_date": str(today - timedelta(days=30))},
+     "ingestion_type": "incremental", "start_date": str(today - timedelta(days=30)),
+     "watermark_column": "date", "watermark_format": "yyyy-MM-dd",
+     "timeout": 1800},
  
     {**COPILOT, "source": "copilot", "dataset": "user_detail",
      "endpoint": "/copilot/reports/getMicrosoft365CopilotUsageUserDetail(period='D30')",
-     "destination_table": "user_detail"},
+     "destination_table": "user_detail", "timeout": 1800},
  
     {**COPILOT, "source": "copilot", "dataset": "user_count_trend",
      "endpoint": "/copilot/reports/getMicrosoft365CopilotUserCountTrend(period='D7')",
-     "destination_table": "user_count_trend"},
+     "destination_table": "user_count_trend", "timeout": 900},
  
     {**COPILOT, "source": "copilot", "dataset": "user_count_summary",
      "endpoint": "/copilot/reports/getMicrosoft365CopilotUserCountSummary(period='D30')",
-     "destination_table": "user_count_summary"},
+     "destination_table": "user_count_summary", "timeout": 900},
  
     {**LEGORA, "source": "legora", "dataset": "audit_logs",
      "endpoint": "/audit-logs", "records_path": "data",
      "date_param_from": "from", "date_param_to": "to",
      "destination_table": "audit_logs",
-     "ingestion_type": "incremental", "start_date": str(today - timedelta(days=90))},
+     "ingestion_type": "incremental", "start_date": str(today - timedelta(days=90)),
+     # set watermark_column once you know the audit-log timestamp field name in bronze
+     "timeout": 5400},
  
     {**LEGORA, "source": "legora", "dataset": "users",
      "endpoint": "/users", "records_path": "data",
-     "destination_table": "users", "ingestion_type": "full"},
+     "destination_table": "users", "ingestion_type": "full", "timeout": 900},
 ]
  
 wanted = [s.strip() for s in sources.split(",") if s.strip()]
@@ -110,15 +116,18 @@ results, failures = [], []
  
 for cfg in queue:
     label = f"{cfg['source']}.{cfg['dataset']}"
-    params = {k: v for k, v in cfg.items() if k not in ("source", "dataset") and v != ""}
+    timeout = int(cfg.get("timeout") or DEFAULT_TIMEOUT)
+    # "timeout" is orchestration only, the child notebook has no such parameter
+    params = {k: v for k, v in cfg.items()
+              if k not in ("source", "dataset", "timeout") and v != ""}
     # params["destination_schema"] = cfg["source"]
     try:
-        res = json.loads(notebookutils.notebook.run(NOTEBOOK, TIMEOUT, params))
+        res = json.loads(notebookutils.notebook.run(NOTEBOOK, timeout, params))
         results.append({"dataset": label, **res})
-        print(f"OK   {label}: {res['rows']} rows -> {res['table']}")
+        print(f"OK   {label}: {res['rows']} rows -> {res['table']} (timeout {timeout}s)")
     except Exception as exc:
-        failures.append({"dataset": label, "error": str(exc)[:300]})
-        print(f"FAIL {label}: {str(exc)[:300]}")
+        failures.append({"dataset": label, "error": str(exc)[:300], "timeout": timeout})
+        print(f"FAIL {label} (timeout {timeout}s): {str(exc)[:300]}")
  
 if failures:
     raise RuntimeError(json.dumps(failures, indent=2))

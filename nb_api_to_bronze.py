@@ -16,6 +16,11 @@ destination_table  = ""
 ingestion_type     = "incremental"      # incremental | full
 start_date         = "2020-01-01"
 end_date           = ""
+
+# incremental watermark
+watermark_column      = ""              # bronze column holding the high water mark, blank = ingestion_timestamp
+watermark_format      = ""              # optional parse format when that column is a string, e.g. yyyy-MM-dd
+watermark_offset_days = 0               # re-read this many days before the watermark, for late arriving data
  
 # auth
 auth_type            = "none"           # none | api_key | oauth2_client_credentials
@@ -59,7 +64,7 @@ print(destination_table)
 
 
 import json, re, time, requests, notebookutils
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType
  
@@ -104,9 +109,29 @@ headers.update(auth_header())
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {destination_schema}")
 table_exists = spark.catalog.tableExists(table)
  
+
+def watermark_date():
+    """Max value of the watermark column as a date, or None if nothing parseable is stored."""
+    col = watermark_column or "ingestion_timestamp"
+    types = dict(spark.table(table).dtypes)
+    if col not in types:
+        raise ValueError(f"watermark_column '{col}' not in {table}. Columns: {sorted(types)}")
+
+    if types[col] == "string" and watermark_format:
+        expr = f"to_date(try_to_timestamp(`{col}`, '{watermark_format}'))"
+    else:
+        # covers date, timestamp, and ISO-8601 strings; anything unparseable becomes null
+        expr = f"try_cast(`{col}` AS date)"
+
+    wm = spark.sql(f"SELECT max({expr}) FROM {table}").collect()[0][0]
+    if wm is None:
+        print(f"WARN no parseable value in {col} ({types[col]}), falling back to start_date")
+    return wm
+
+
 if ingestion_type == "incremental" and table_exists:
-    wm = spark.sql(f"SELECT max(ingestion_timestamp) FROM {table}").collect()[0][0]
-    from_date = wm.date().isoformat() if wm else start_date
+    wm = watermark_date()
+    from_date = (wm - timedelta(days=watermark_offset_days)).isoformat() if wm else start_date
 else:
     from_date = start_date
  
@@ -120,7 +145,9 @@ if date_param_to:
 if page_size_param:
     params[page_size_param] = page_size
  
-print(f"{table} | {ingestion_type} | {from_date} to {to_date} | exists={table_exists}")
+wm_label = watermark_column or "ingestion_timestamp"
+print(f"{table} | {ingestion_type} | {from_date} to {to_date} | "
+      f"exists={table_exists} | watermark={wm_label} -{watermark_offset_days}d")
 
 
 # In[ ]:
@@ -200,5 +227,6 @@ df.write.format("delta").mode(mode).option(option, "true").saveAsTable(table)
 rows = df.count()
 print(f"{rows} rows {mode} to {table}")
 notebookutils.notebook.exit(json.dumps({"table": table, "rows": rows, "status": "success",
-                                        "from": from_date, "to": to_date}))
+                                        "from": from_date, "to": to_date,
+                                        "watermark": watermark_column or "ingestion_timestamp"}))
 

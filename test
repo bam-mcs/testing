@@ -1,0 +1,161 @@
+can you match these lsit of params 
+
+
+COCOUNSEL = {
+    "destination_schema" : "cocounsel",
+    "auth_type": "oauth2_client_credentials",
+    "token_url": "https://auth.thomsonreuters.com/oauth/token",
+    "key_vault_uri": key_vault_uri,
+    "client_id_secret": "CoCounsel-Client-id",
+    "client_secret_secret": "CoCounsel-Client-Secret",
+    "audience_secret": "CoCounsel-Audience",
+    "base_url": "https://admin-au.cocounsel.thomsonreuters.com/api/v1/admin",
+    "response_format": "json",
+    "records_path": "individuals",
+    "date_param_from": "startDate",
+    "date_param_to": "endDate",
+    "request_delay": 8,          # 10 requests per minute per IP
+}
+ 
+COPILOT = {
+    "destination_schema" : "copilot",
+    "auth_type": "oauth2_client_credentials",
+    "token_url": f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+    "key_vault_uri": key_vault_uri,
+    "client_id_secret": "copilot-client-id",
+    "client_secret_secret": "copilot-client-secret",
+    "scope_secret": "copilot-scope",
+    "base_url": "https://graph.microsoft.com/v1.0",
+    "response_format": "csv",
+    "load_type": "full",
+}
+ 
+LEGORA = {
+    "destination_schema" : "legora",
+    "auth_type": "api_key",
+    "key_vault_uri": key_vault_uri,
+    "token_secret": "legora-api-key",
+    "base_url": "https://api.ap.legora.com/api/v1",
+    "response_format": "json",
+    "pagination": "cursor",
+    "cursor_field": "nextCursor",
+    "page_size_param": "limit",
+    "page_size": 1000,
+}
+ 
+DATASETS = [ # 1st aug 2025 
+    {**COCOUNSEL, "source": "cocounsel", "dataset": "user_usage",
+     "endpoint": "/analytics", "destination_table": "user_usage",
+     "load_type": "incremental_window", "start_date": str(today - timedelta(days=30)),
+     "watermark_column": "date", "watermark_format": "yyyy-MM-dd",
+     "timeout": 1800},
+ 
+    {**COCOUNSEL, "source": "cocounsel", "dataset": "skill_usage",
+     "endpoint": "/analytics", "query_params": json.dumps({"include": "skills"}),
+    "destination_table": "skill_usage",
+     "load_type": "incremental_window", "start_date": str(today - timedelta(days=30)),
+     "watermark_column": "date", "watermark_format": "yyyy-MM-dd",
+     "timeout": 1800},
+ 
+    {**COPILOT, "source": "copilot", "dataset": "user_detail",
+     "load_type": "incremental_window","endpoint": "/copilot/reports/getMicrosoft365CopilotUsageUserDetail(period='D30')",
+     "destination_table": "user_detail", "timeout": 1800},
+ 
+    {**COPILOT, "source": "copilot", "dataset": "user_count_trend",
+     "load_type": "incremental_window","endpoint": "/copilot/reports/getMicrosoft365CopilotUserCountTrend(period='D7')",
+     "destination_table": "user_count_trend", "timeout": 900},
+ 
+    {**COPILOT, "source": "copilot", "dataset": "user_count_summary",
+     "load_type": "incremental_window","endpoint": "/copilot/reports/getMicrosoft365CopilotUserCountSummary(period='D30')",
+     "destination_table": "user_count_summary", "timeout": 900},
+ 
+    {**LEGORA, "source": "legora", "dataset": "audit_logs",
+     "endpoint": "/audit-logs", "records_path": "data",
+     "date_param_from": "from", "date_param_to": "to",
+     "destination_table": "audit_logs",
+     "load_type": "incremental_window", "start_date": str(today - timedelta(days=90)),
+     # set watermark_column once you know the audit-log timestamp field name in bronze
+     "timeout": 5400},
+ 
+    {**LEGORA, "source": "legora", "dataset": "users",
+     "endpoint": "/users", "records_path": "data",
+     "destination_table": "users", "load_type": "full_reload", "timeout": 900},
+]
+ 
+
+
+To these new notebook params? it's in ms fabric
+
+
+# PARAMETERS CELL ********************
+
+
+
+# destination
+destination_schema   = ""              # source system name, created if missing
+destination_table    = ""
+load_type            = "incremental_merge"   # full_reload | incremental_merge | incremental_window
+start_date           = "2020-01-01"
+end_date             = ""
+ 
+# incremental watermark
+source_watermark_column = ""           # bronze column holding the high water mark, blank = load_timestamp
+watermark_format        = ""           # optional parse format when that column is a string, e.g. yyyy-MM-dd
+watermark_offset_days   = 0            # re-read this many days before the watermark, for late arriving data
+ 
+# idempotency
+batch_id             = ""              # REQUIRED from the pipeline: @pipeline().RunId
+primary_key          = ""              # comma-separated source columns; required by incremental_merge
+ 
+# load_type names a complete valid combination of read window and write
+# behaviour, so invalid states cannot be expressed:
+#
+#   full_reload         fetch everything from start_date, replace the table.
+#                       The only safe mode when the watermark is mutable and
+#                       there is no business key.
+#   incremental_merge   fetch from the watermark, upsert on primary_key.
+#                       Safe whether or not the watermark changes on update.
+#   incremental_window  fetch from the watermark, replace that date range
+#                       whole. Requires an IMMUTABLE watermark - choosing
+#                       this mode is that assertion. No key needed.
+ 
+# auth
+auth_type                            = "none"   # none | api_key | oauth2_client_credentials
+azure_key_vault                      = ""
+azure_key_vault_secret_token_name    = ""
+azure_key_vault_secret_client_id_name = ""
+azure_key_vault_secret_client_secret_name = ""
+azure_key_vault_secret_api_audience_name  = ""
+azure_key_vault_secret_api_scope_name     = ""
+token_url                            = ""
+ 
+# source
+source_connection_base_url    = ""
+source_connection_url_endpoint = ""
+query_params   = "{}"
+extra_headers  = "{}"
+date_param_from = ""
+date_param_to   = ""
+ 
+# response
+response_format = "json"               # json | csv
+records_path    = ""
+pagination      = "none"               # none | next_link | cursor
+cursor_param    = "cursor"
+cursor_field    = "nextCursor"
+page_size_param = ""
+page_size       = 1000
+max_pages       = 100
+request_delay   = 0                    # seconds between requests, for rate limited APIs
+ 
+# pagination safety
+fail_on_page_cap = True                # raise instead of writing a truncated dataset
+sort_param       = ""                  # e.g. "orderBy" or "sort", if the API supports it
+sort_ascending   = ""                  # the value for sort_param, e.g. "createdAt asc"
+ 
+# retry tunables, per source
+max_attempts    = 5
+connect_timeout = 10
+read_timeout    = 120                  # seconds BETWEEN bytes, not total request duration
+base_delay      = 1.0
+max_delay       = 60.0

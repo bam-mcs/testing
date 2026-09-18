@@ -1,161 +1,118 @@
-can you match these lsit of params 
+Here is your daily activity summary of tasks assigned to you over the past two weeks (4 September 2026 – 18 September 2026):
 
+Friday, 18 September 2026
+DATPL-441: Phase 6- Semantic Model & Gold Layer Implementation
+To Do
+ — Initiated and scoped the Phase 6 Semantic Model & Gold Layer Implementation initiative for business reporting and analytics delivery.
 
-COCOUNSEL = {
-    "destination_schema" : "cocounsel",
-    "auth_type": "oauth2_client_credentials",
-    "token_url": "https://auth.thomsonreuters.com/oauth/token",
-    "key_vault_uri": key_vault_uri,
-    "client_id_secret": "CoCounsel-Client-id",
-    "client_secret_secret": "CoCounsel-Client-Secret",
-    "audience_secret": "CoCounsel-Audience",
-    "base_url": "https://admin-au.cocounsel.thomsonreuters.com/api/v1/admin",
-    "response_format": "json",
-    "records_path": "individuals",
-    "date_param_from": "startDate",
-    "date_param_to": "endDate",
-    "request_delay": 8,          # 10 requests per minute per IP
-}
- 
-COPILOT = {
-    "destination_schema" : "copilot",
-    "auth_type": "oauth2_client_credentials",
-    "token_url": f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
-    "key_vault_uri": key_vault_uri,
-    "client_id_secret": "copilot-client-id",
-    "client_secret_secret": "copilot-client-secret",
-    "scope_secret": "copilot-scope",
-    "base_url": "https://graph.microsoft.com/v1.0",
-    "response_format": "csv",
-    "load_type": "full",
-}
- 
-LEGORA = {
-    "destination_schema" : "legora",
-    "auth_type": "api_key",
-    "key_vault_uri": key_vault_uri,
-    "token_secret": "legora-api-key",
-    "base_url": "https://api.ap.legora.com/api/v1",
-    "response_format": "json",
-    "pagination": "cursor",
-    "cursor_field": "nextCursor",
-    "page_size_param": "limit",
-    "page_size": 1000,
-}
- 
-DATASETS = [ # 1st aug 2025 
-    {**COCOUNSEL, "source": "cocounsel", "dataset": "user_usage",
-     "endpoint": "/analytics", "destination_table": "user_usage",
-     "load_type": "incremental_window", "start_date": str(today - timedelta(days=30)),
-     "watermark_column": "date", "watermark_format": "yyyy-MM-dd",
-     "timeout": 1800},
- 
-    {**COCOUNSEL, "source": "cocounsel", "dataset": "skill_usage",
-     "endpoint": "/analytics", "query_params": json.dumps({"include": "skills"}),
-    "destination_table": "skill_usage",
-     "load_type": "incremental_window", "start_date": str(today - timedelta(days=30)),
-     "watermark_column": "date", "watermark_format": "yyyy-MM-dd",
-     "timeout": 1800},
- 
-    {**COPILOT, "source": "copilot", "dataset": "user_detail",
-     "load_type": "incremental_window","endpoint": "/copilot/reports/getMicrosoft365CopilotUsageUserDetail(period='D30')",
-     "destination_table": "user_detail", "timeout": 1800},
- 
-    {**COPILOT, "source": "copilot", "dataset": "user_count_trend",
-     "load_type": "incremental_window","endpoint": "/copilot/reports/getMicrosoft365CopilotUserCountTrend(period='D7')",
-     "destination_table": "user_count_trend", "timeout": 900},
- 
-    {**COPILOT, "source": "copilot", "dataset": "user_count_summary",
-     "load_type": "incremental_window","endpoint": "/copilot/reports/getMicrosoft365CopilotUserCountSummary(period='D30')",
-     "destination_table": "user_count_summary", "timeout": 900},
- 
-    {**LEGORA, "source": "legora", "dataset": "audit_logs",
-     "endpoint": "/audit-logs", "records_path": "data",
-     "date_param_from": "from", "date_param_to": "to",
-     "destination_table": "audit_logs",
-     "load_type": "incremental_window", "start_date": str(today - timedelta(days=90)),
-     # set watermark_column once you know the audit-log timestamp field name in bronze
-     "timeout": 5400},
- 
-    {**LEGORA, "source": "legora", "dataset": "users",
-     "endpoint": "/users", "records_path": "data",
-     "destination_table": "users", "load_type": "full_reload", "timeout": 900},
-]
- 
+Thursday, 17 September 2026
+DATPL-426: Phase 4-Core Data Platform Foundation (Silver Layer)
+To Do
+ — Defined and structured the Phase 4 Core Data Platform Foundation initiative covering Silver Layer curation.
 
+DATPL-425: Phase 3- Core Platform Bronze Layer Implementation
+In Progress
+ — Activated and scoped the Phase 3 Core Platform Bronze Layer Implementation initiative.
 
-To these new notebook params? it's in ms fabric
+DATPL-313: Setup CI/CD Framework
+In Progress
+ — Refined the platform CI/CD framework design and Git branching strategy across Dev, Test, and Production environments.
 
+DATPL-314: Security and Data Access Framework
+In Progress
+ — Advanced the Security and Data Access Framework focusing on OneLake RBAC, OneLake shortcuts, and Entra ID security group mappings.
 
-# PARAMETERS CELL ********************
+DATPL-335: Copilot Silver
+To Do
+ — Updated data transformation logic and data quality validation rules for Microsoft Copilot Silver layer datasets.
 
+DATPL-302: Tech WS- 12 Aug- Define Target Microsoft Fabric Architecture
+In Progress
+ — Progressed Microsoft Fabric architecture requirements, Purview integration, and central logging follow-ups from technical workshops.
 
+DATPL-290: Arrange or support a detailed demo of the metadata-driven framework
+Done
+ — Completed and closed the demonstration actions for the metadata-driven framework.
 
-# destination
-destination_schema   = ""              # source system name, created if missing
-destination_table    = ""
-load_type            = "incremental_merge"   # full_reload | incremental_merge | incremental_window
-start_date           = "2020-01-01"
-end_date             = ""
- 
-# incremental watermark
-source_watermark_column = ""           # bronze column holding the high water mark, blank = load_timestamp
-watermark_format        = ""           # optional parse format when that column is a string, e.g. yyyy-MM-dd
-watermark_offset_days   = 0            # re-read this many days before the watermark, for late arriving data
- 
-# idempotency
-batch_id             = ""              # REQUIRED from the pipeline: @pipeline().RunId
-primary_key          = ""              # comma-separated source columns; required by incremental_merge
- 
-# load_type names a complete valid combination of read window and write
-# behaviour, so invalid states cannot be expressed:
-#
-#   full_reload         fetch everything from start_date, replace the table.
-#                       The only safe mode when the watermark is mutable and
-#                       there is no business key.
-#   incremental_merge   fetch from the watermark, upsert on primary_key.
-#                       Safe whether or not the watermark changes on update.
-#   incremental_window  fetch from the watermark, replace that date range
-#                       whole. Requires an IMMUTABLE watermark - choosing
-#                       this mode is that assertion. No key needed.
- 
-# auth
-auth_type                            = "none"   # none | api_key | oauth2_client_credentials
-azure_key_vault                      = ""
-azure_key_vault_secret_token_name    = ""
-azure_key_vault_secret_client_id_name = ""
-azure_key_vault_secret_client_secret_name = ""
-azure_key_vault_secret_api_audience_name  = ""
-azure_key_vault_secret_api_scope_name     = ""
-token_url                            = ""
- 
-# source
-source_connection_base_url    = ""
-source_connection_url_endpoint = ""
-query_params   = "{}"
-extra_headers  = "{}"
-date_param_from = ""
-date_param_to   = ""
- 
-# response
-response_format = "json"               # json | csv
-records_path    = ""
-pagination      = "none"               # none | next_link | cursor
-cursor_param    = "cursor"
-cursor_field    = "nextCursor"
-page_size_param = ""
-page_size       = 1000
-max_pages       = 100
-request_delay   = 0                    # seconds between requests, for rate limited APIs
- 
-# pagination safety
-fail_on_page_cap = True                # raise instead of writing a truncated dataset
-sort_param       = ""                  # e.g. "orderBy" or "sort", if the API supports it
-sort_ascending   = ""                  # the value for sort_param, e.g. "createdAt asc"
- 
-# retry tunables, per source
-max_attempts    = 5
-connect_timeout = 10
-read_timeout    = 120                  # seconds BETWEEN bytes, not total request duration
-base_delay      = 1.0
-max_delay       = 60.0
+DATPL-257: Define Phase 1 Core Data Platform Scope
+Done
+ — Finalized and completed the definition and roadmap deliverables for Phase 1 Core Data Platform scope.
+
+Tuesday, 15 September 2026
+DATPL-327: Copilot Ingestion
+In Progress
+ — Structured Graph API authentication and metadata-driven ingestion pipelines for Microsoft 365 Copilot into the Bronze Layer.
+
+DATPL-328: Daily Production Tracker Ingestion
+In Progress
+ — Outlined hybrid VNet Data Gateway connectivity and watermark extraction for Daily Production Tracker on-prem SQL ingestion.
+
+DATPL-329: Laurel Ingestion
+In Progress
+ — Configured Laurel export file ingestion parameters and Google Drive API connectivity in metadata_db.
+
+DATPL-330: Legora Ingestion
+In Progress
+ — Defined Legora API ingestion specifications, rate limiting rules, and Azure Key Vault credential management.
+
+Monday, 14 September 2026
+DATPL-408: Load Historical CoCounsel Usage and Theme Data into Bronze Layer
+Done
+ — Completed and validated historical CoCounsel usage and theme data backfill into the Fabric Bronze Layer.
+
+DATPL-317: Provision Fabric Capacity - MCS team to update the description and acceptance criteria
+Done
+ — Finalized procurement and provisioning of Microsoft Fabric capacity SKU for the Core Data Platform workspace.
+
+DATPL-404: Configure Production Security, Secrets and Connectivity
+To Do
+ — Scoped Production security controls, Key Vault references, and Service Principal RBAC configurations.
+
+DATPL-405: Configure Production Deployment and Promotion Framework
+To Do
+ — Defined release approvals and parameterisation for the Production deployment and promotion framework.
+
+DATPL-406: Validate Production Deployment Using CoCounsel Bronze Layer Solution
+To Do
+ — Outlined deployment validation and smoke testing workflows using CoCounsel Bronze assets.
+
+DATPL-407: Document Production Environment Operations and Governance Model
+To Do
+ — Scoped the Production environment operations runbook and governance documentation.
+
+Wednesday, 09 September 2026
+DATPL-403: Configure Environment Security and Secrets in Development Environment
+Done
+ — Configured and validated secure storage and Azure Key Vault retrieval of CoCounsel credentials in the Development environment.
+
+DATPL-409: Enable Scheduled Incremental Refresh for CoCounsel Data
+In Progress
+ — Advanced automated watermark-based incremental loading and scheduling for CoCounsel data.
+
+DATPL-410: Operationalise CoCounsel Bronze Layer Pipeline
+In Progress
+ — Progressed monitoring, error handling, and operational runbook setup for the CoCounsel Bronze pipeline.
+
+Tuesday, 08 September 2026
+DATPL-326: Configure CoCounsel Bronze Layer Ingestion
+Done
+ — Completed API connectivity, metadata configuration, and initial ingestion validation for CoCounsel Bronze Layer.
+
+DATPL-318: Provision Production Fabric Workspaces and Metadata Services
+Done
+ — Successfully provisioned Production Microsoft Fabric workspaces, metadata_db, and capacity assignments.
+
+Monday, 07 September 2026
+DATPL-385: Add MCS team to grant sync workspace with Github
+Done
+ — Resolved tenant configuration access to grant team permissions for syncing workspace items with GitHub.
+
+DATPL-353: SQL Data Extraction Approach
+Done
+ — Completed the documentation and recommendation on SQL database extraction and mirroring approaches.
+
+DATPL-337: Laurel Silver
+To Do
+ — Defined Silver Layer data cleansing, schema standardization, and incremental processing for Laurel data.
+
+JQL Query Used: assignee = currentUser() AND updated >= "2026-09-04" ORDER BY updated DESC
